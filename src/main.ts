@@ -117,3 +117,138 @@ ipcMain.handle('load-project-settings', async () => {
     return null;
   }
 });
+
+// 時間ベースのユニークIDを生成する関数
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+}
+
+// 論文メタデータを保存するハンドラー
+ipcMain.handle('save-literature', async (_, literature) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // IDがない場合は新規作成として扱い、IDを生成
+    let id = literature.id;
+    if (!id) {
+      id = generateId();
+      literature.id = id;
+    }
+    
+    // タイムスタンプを設定
+    const now = new Date().toISOString();
+    if (!literature.createdAt) {
+      literature.createdAt = now;
+    }
+    literature.updatedAt = now;
+    
+    // Working Dirに論文メタデータを保存
+    const literatureFilePath = path.join(settings.workingDir, `${id}.json`);
+    await fs.writeFile(literatureFilePath, JSON.stringify(literature, null, 2), 'utf-8');
+    
+    return { success: true, id };
+  } catch (error) {
+    console.error('論文メタデータの保存に失敗しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 論文メタデータを読み込むハンドラー
+ipcMain.handle('load-literature', async (_, id) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // 指定されたIDの論文メタデータを読み込む
+    const literatureFilePath = path.join(settings.workingDir, `${id}.json`);
+    const data = await fs.readFile(literatureFilePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('論文メタデータの読み込みに失敗しました:', error);
+    return null;
+  }
+});
+
+// 論文メタデータの一覧を取得するハンドラー
+ipcMain.handle('list-literatures', async () => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // Working Dirからすべての.jsonファイルを取得
+    const files = await fs.readdir(settings.workingDir);
+    const literatureFiles = files.filter(file => 
+      file.endsWith('.json') && file !== 'project-metadata.json' && file !== 'schema.attributes.json'
+    );
+    
+    // メタデータの一覧を作成
+    const literatures = await Promise.all(
+      literatureFiles.map(async (file) => {
+        try {
+          const filePath = path.join(settings.workingDir, file);
+          const data = await fs.readFile(filePath, 'utf-8');
+          const literature = JSON.parse(data);
+          return {
+            id: literature.id,
+            title: literature.title,
+            type: literature.type,
+            year: literature.year
+          };
+        } catch (error) {
+          console.error(`ファイル ${file} の読み込みに失敗しました:`, error);
+          return null;
+        }
+      })
+    );
+    
+    // nullの結果を除外
+    return literatures.filter(item => item !== null);
+  } catch (error) {
+    console.error('論文メタデータ一覧の取得に失敗しました:', error);
+    return [];
+  }
+});
+
+// PDFファイルの選択ダイアログを開くハンドラー
+ipcMain.handle('select-pdf-file', async () => {
+  try {
+    // 現在のプロジェクト設定を取得（Repository Dirのベースディレクトリを取得するため）
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // ダイアログオプションを設定
+    const dialogOptions: any = {
+      properties: ['openFile'],
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+      title: 'PDFファイルを選択してください',
+      buttonLabel: '選択',
+    };
+    
+    // Repository Dirが設定されている場合は、そこをデフォルトディレクトリにする
+    if (settings.repositoryDir) {
+      dialogOptions.defaultPath = settings.repositoryDir;
+    }
+    
+    const { canceled, filePaths } = await dialog.showOpenDialog(dialogOptions);
+    
+    if (canceled) {
+      return null;
+    }
+    
+    const selectedPath = filePaths[0];
+    
+    // Repository Dirが設定されている場合は、相対パスを返す
+    if (settings.repositoryDir && selectedPath.startsWith(settings.repositoryDir)) {
+      return path.relative(settings.repositoryDir, selectedPath);
+    }
+    
+    return selectedPath;
+  } catch (error) {
+    console.error('PDFファイルの選択に失敗しました:', error);
+    return null;
+  }
+});

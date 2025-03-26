@@ -135,7 +135,7 @@ const ProjectSettingsForm: React.FC = () => {
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 3, maxWidth: 800, mx: 'auto', mt: 4 }}>
+    <Paper elevation={3} sx={{ p: 3, width: '100%', mt: 4 }}>
       <Typography variant="h5" gutterBottom>
         プロジェクト設定
       </Typography>
