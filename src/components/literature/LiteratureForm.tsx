@@ -150,12 +150,16 @@ const LiteratureForm: React.FC<LiteratureFormProps> = ({ initialData, onSave }) 
       console.log('送信前の共通データ:', commonData);
       console.log('送信前の属性データ:', commonData.attributes);
       
-      // 文献データを作成（属性データの保持を確認）
+      // 文献データを作成
+      // additionalDataにはinitialDataの全内容が含まれているが、commonDataの変更が優先されるべき
       const literatureData: any = {
-        ...commonData,
+        // 最初にadditionalDataを展開（initialDataのクローン）
         ...additionalData,
+        // 次にcommonDataで上書き（編集された内容）
+        ...commonData,
+        // typeを設定
         type,
-        // 属性データを明示的に設定
+        // 属性データを明示的に設定（念のため）
         attributes: commonData.attributes || [],
       };
       

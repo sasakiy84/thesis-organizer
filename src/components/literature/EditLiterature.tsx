@@ -67,6 +67,8 @@ const EditLiterature: React.FC<EditLiteratureProps> = ({ literatureId, onSaved, 
       // IDを保持
       literatureData.id = literatureId;
       
+      console.log('保存される文献データ: ', literatureData);
+      
       // Zodでのバリデーション
       LiteratureSchema.parse(literatureData);
       
@@ -74,6 +76,9 @@ const EditLiterature: React.FC<EditLiteratureProps> = ({ literatureId, onSaved, 
       const result = await window.projectAPI.saveLiterature(literatureData);
       
       if (result.success) {
+        // コンポーネントの状態を更新
+        setLiterature(literatureData);
+        
         setSnackbar({
           open: true,
           message: '論文情報を更新しました',
