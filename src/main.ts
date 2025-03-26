@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { glob } from 'node:fs/promises';
 import started from 'electron-squirrel-startup';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -60,6 +61,11 @@ app.on('activate', () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
+// 時間ベースのユニークIDを生成する関数
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+}
+
 // Working Dirの選択ダイアログを開くハンドラー
 ipcMain.handle('select-working-dir', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -92,9 +98,15 @@ ipcMain.handle('save-project-settings', async (_, settings) => {
       updatedAt: new Date().toISOString(),
     }, null, 2), 'utf-8');
     
-    // 属性スキーマの初期ファイルを作成
-    const attributesSchemaFile = path.join(settings.workingDir, 'schema.attributes.json');
-    await fs.writeFile(attributesSchemaFile, JSON.stringify([], null, 2), 'utf-8');
+    // 属性スキーマディレクトリを作成
+    const attributesSchemaDirPath = path.join(settings.workingDir, 'attributes');
+    try {
+      await fs.mkdir(attributesSchemaDirPath, { recursive: true });
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error;
+      }
+    }
     
     return { success: true };
   } catch (error) {
@@ -117,11 +129,6 @@ ipcMain.handle('load-project-settings', async () => {
     return null;
   }
 });
-
-// 時間ベースのユニークIDを生成する関数
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
-}
 
 // 論文メタデータを保存するハンドラー
 ipcMain.handle('save-literature', async (_, literature) => {
@@ -182,7 +189,9 @@ ipcMain.handle('list-literatures', async () => {
     // Working Dirからすべての.jsonファイルを取得
     const files = await fs.readdir(settings.workingDir);
     const literatureFiles = files.filter(file => 
-      file.endsWith('.json') && file !== 'project-metadata.json' && file !== 'schema.attributes.json'
+      file.endsWith('.json') && 
+      file !== 'project-metadata.json' && 
+      !file.endsWith('attribute-schema.json')
     );
     
     // メタデータの一覧を作成
@@ -250,5 +259,155 @@ ipcMain.handle('select-pdf-file', async () => {
   } catch (error) {
     console.error('PDFファイルの選択に失敗しました:', error);
     return null;
+  }
+});
+
+// 属性スキーマを保存するハンドラー
+ipcMain.handle('save-attribute-schema', async (_, schema) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // IDがない場合は新規作成として扱い、IDを生成
+    let id = schema.id;
+    if (!id) {
+      id = generateId();
+      schema.id = id;
+    }
+    
+    // タイムスタンプを設定
+    const now = new Date().toISOString();
+    if (!schema.createdAt) {
+      schema.createdAt = now;
+    }
+    schema.updatedAt = now;
+    
+    // 属性スキーマディレクトリを確認
+    const attributesSchemaDirPath = path.join(settings.workingDir, 'attributes');
+    try {
+      await fs.mkdir(attributesSchemaDirPath, { recursive: true });
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error;
+      }
+    }
+    
+    // 属性スキーマをJSONファイルとして保存
+    const schemaFilePath = path.join(attributesSchemaDirPath, `${id}.attribute-schema.json`);
+    await fs.writeFile(schemaFilePath, JSON.stringify(schema, null, 2), 'utf-8');
+    
+    return { success: true, id };
+  } catch (error) {
+    console.error('属性スキーマの保存に失敗しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 属性スキーマを削除するハンドラー
+ipcMain.handle('delete-attribute-schema', async (_, id) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // 属性スキーマファイルパスを作成
+    const attributesSchemaDirPath = path.join(settings.workingDir, 'attributes');
+    const schemaFilePath = path.join(attributesSchemaDirPath, `${id}.attribute-schema.json`);
+    
+    // ファイルが存在するか確認
+    try {
+      await fs.access(schemaFilePath);
+    } catch (error) {
+      return { success: false, error: '指定された属性スキーマが見つかりません' };
+    }
+    
+    // ファイルを削除
+    await fs.unlink(schemaFilePath);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('属性スキーマの削除に失敗しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 属性スキーマを読み込むハンドラー
+ipcMain.handle('load-attribute-schema', async (_, id) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // 属性スキーマファイルパスを作成
+    const attributesSchemaDirPath = path.join(settings.workingDir, 'attributes');
+    const schemaFilePath = path.join(attributesSchemaDirPath, `${id}.attribute-schema.json`);
+    
+    // ファイルが存在するか確認
+    try {
+      await fs.access(schemaFilePath);
+    } catch (error) {
+      return null;
+    }
+    
+    // 属性スキーマを読み込む
+    const data = await fs.readFile(schemaFilePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('属性スキーマの読み込みに失敗しました:', error);
+    return null;
+  }
+});
+
+// 属性スキーマの一覧を取得するハンドラー
+ipcMain.handle('list-attribute-schemas', async () => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // 属性スキーマディレクトリを確認
+    const attributesSchemaDirPath = path.join(settings.workingDir, 'attributes');
+    try {
+      await fs.mkdir(attributesSchemaDirPath, { recursive: true });
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error;
+      }
+    }
+    
+    // 属性スキーマファイルを検索
+    // glob関数はAsyncIterableを返すので、配列に変換する
+    const files = [];
+    for await (const file of glob('*.attribute-schema.json', { 
+      cwd: attributesSchemaDirPath,
+      withFileTypes: false
+    })) {
+      files.push(file);
+    }
+    
+    // スキーマの一覧を作成
+    const schemas = await Promise.all(
+      files.map(async (file) => {
+        try {
+          const filePath = path.join(attributesSchemaDirPath, file);
+          const data = await fs.readFile(filePath, 'utf-8');
+          const schema = JSON.parse(data);
+          return {
+            id: schema.id,
+            name: schema.name
+          };
+        } catch (error) {
+          console.error(`ファイル ${file} の読み込みに失敗しました:`, error);
+          return null;
+        }
+      })
+    );
+    
+    // nullの結果を除外
+    return schemas.filter(item => item !== null);
+  } catch (error) {
+    console.error('属性スキーマ一覧の取得に失敗しました:', error);
+    return [];
   }
 });

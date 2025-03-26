@@ -14,6 +14,7 @@ import Navigation from './components/Navigation';
 import ProjectSettingsForm from './components/ProjectSettings';
 import AddLiterature from './components/literature/AddLiterature';
 import LiteratureList from './components/literature/LiteratureList';
+import AttributeManagement from './components/attributes/AttributeManagement';
 
 // アプリケーションのテーマを設定
 const theme = createTheme({
@@ -121,6 +122,8 @@ const App: React.FC = () => {
       case 'editLiterature':
         // TODO: 論文編集画面の実装
         return <div>論文編集（ID: {selectedLiteratureId}）</div>;
+      case 'attributeManagement':
+        return <AttributeManagement />;
       default:
         return <div>Unknown page</div>;
     }

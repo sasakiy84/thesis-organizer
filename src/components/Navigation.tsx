@@ -15,6 +15,7 @@ import {
 import SettingsIcon from '@mui/icons-material/Settings';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import AddIcon from '@mui/icons-material/Add';
+import LabelIcon from '@mui/icons-material/Label';
 
 // ドロワーの幅
 const drawerWidth = 240;
@@ -29,6 +30,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate }) => {
   const navItems = [
     { id: 'literatureList', label: '論文一覧', icon: <ListAltIcon /> },
     { id: 'addLiterature', label: '論文を追加', icon: <AddIcon /> },
+    { id: 'attributeManagement', label: '属性管理', icon: <LabelIcon /> },
     { id: 'settings', label: 'プロジェクト設定', icon: <SettingsIcon /> },
   ];
 

@@ -2,7 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { Literature, ProjectSettings } from './types';
+import { AttributeSchema, Literature, ProjectSettings } from './types';
 
 // プロジェクト設定と論文メタデータのためのAPIを公開
 contextBridge.exposeInMainWorld('projectAPI', {
@@ -26,4 +26,16 @@ contextBridge.exposeInMainWorld('projectAPI', {
   
   // PDFファイルの選択ダイアログを開く
   selectPdfFile: () => ipcRenderer.invoke('select-pdf-file'),
+  
+  // 属性スキーマを保存する
+  saveAttributeSchema: (schema: AttributeSchema) => ipcRenderer.invoke('save-attribute-schema', schema),
+  
+  // 属性スキーマを削除する
+  deleteAttributeSchema: (id: string) => ipcRenderer.invoke('delete-attribute-schema', id),
+  
+  // 属性スキーマを読み込む
+  loadAttributeSchema: (id: string) => ipcRenderer.invoke('load-attribute-schema', id),
+  
+  // 属性スキーマの一覧を取得する
+  listAttributeSchemas: () => ipcRenderer.invoke('list-attribute-schemas'),
 });

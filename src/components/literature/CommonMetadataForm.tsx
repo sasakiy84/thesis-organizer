@@ -8,10 +8,13 @@ import {
   Chip,
   IconButton,
   InputAdornment,
+  Divider,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import FileIcon from '@mui/icons-material/InsertDriveFile';
+import { AttributeApplication } from '../../types';
+import AttributeSelector from '../attributes/AttributeSelector';
 
 interface CommonFormData {
   title: string;
@@ -19,6 +22,7 @@ interface CommonFormData {
   authors: string[];
   notes?: string;
   pdfFilePath?: string;
+  attributes?: AttributeApplication[];
 }
 
 interface CommonMetadataFormProps {
@@ -70,6 +74,11 @@ const CommonMetadataForm: React.FC<CommonMetadataFormProps> = ({
     const updatedAuthors = [...data.authors];
     updatedAuthors.splice(index, 1);
     onChange({ authors: updatedAuthors });
+  };
+
+  // 属性の変更
+  const handleAttributesChange = (attributes: AttributeApplication[]) => {
+    onChange({ attributes });
   };
 
   return (
@@ -179,6 +188,15 @@ const CommonMetadataForm: React.FC<CommonMetadataFormProps> = ({
             onChange={handleChange}
             multiline
             rows={3}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <Divider sx={{ my: 2 }} />
+          <AttributeSelector
+            value={data.attributes || []}
+            onChange={handleAttributesChange}
+            error={errors.attributes}
           />
         </Grid>
       </Grid>

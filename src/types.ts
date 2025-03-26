@@ -18,6 +18,36 @@ export const ProjectMetadataSchema = ProjectSettingsSchema.extend({
 
 export type ProjectMetadata = z.infer<typeof ProjectMetadataSchema>;
 
+// 属性値のスキーマ
+export const AttributeValueSchema = z.object({
+  id: z.string(),
+  value: z.string(),
+});
+
+export type AttributeValue = z.infer<typeof AttributeValueSchema>;
+
+// 属性スキーマの定義
+export const AttributeSchemaSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, '属性名は必須です'),
+  description: z.string().optional(),
+  predefinedValues: z.array(AttributeValueSchema).optional(),
+  allowFreeText: z.boolean().default(false),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type AttributeSchema = z.infer<typeof AttributeSchemaSchema>;
+
+// 属性適用のスキーマ
+export const AttributeApplicationSchema = z.object({
+  attributeId: z.string(),
+  values: z.array(z.string()),
+  note: z.string().optional(),
+});
+
+export type AttributeApplication = z.infer<typeof AttributeApplicationSchema>;
+
 // すべての文献タイプに共通するメタデータのスキーマ
 export const CommonMetadataSchema = z.object({
   id: z.string().optional(),
@@ -28,13 +58,7 @@ export const CommonMetadataSchema = z.object({
   pdfFilePath: z.string().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
-  attributes: z.array(
-    z.object({
-      attributeName: z.string(),
-      values: z.array(z.string()),
-      note: z.string().optional(),
-    })
-  ).optional(),
+  attributes: z.array(AttributeApplicationSchema).optional(),
 });
 
 export type CommonMetadata = z.infer<typeof CommonMetadataSchema>;
@@ -123,14 +147,6 @@ export const LiteratureSchema = z.discriminatedUnion('type', [
 
 export type Literature = z.infer<typeof LiteratureSchema>;
 
-// 属性定義のスキーマ
-export const AttributeDefinitionSchema = z.object({
-  attributeName: z.string().min(1, '属性名は必須です'),
-  values: z.array(z.string()),
-});
-
-export type AttributeDefinition = z.infer<typeof AttributeDefinitionSchema>;
-
 // Window APIの型定義
 export interface ProjectAPI {
   selectWorkingDir: () => Promise<string | null>;
@@ -144,4 +160,12 @@ export interface ProjectAPI {
   listLiteratures: () => Promise<{ id: string; title: string; type: string; year: number }[]>;
   // PDFファイルの選択
   selectPdfFile: () => Promise<string | null>;
+  // 属性スキーマの保存
+  saveAttributeSchema: (schema: AttributeSchema) => Promise<{ success: boolean; id: string; error?: string }>;
+  // 属性スキーマの削除
+  deleteAttributeSchema: (id: string) => Promise<{ success: boolean; error?: string }>;
+  // 属性スキーマの読み込み
+  loadAttributeSchema: (id: string) => Promise<AttributeSchema | null>;
+  // 属性スキーマ一覧の取得
+  listAttributeSchemas: () => Promise<{ id: string; name: string }[]>;
 }
