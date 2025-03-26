@@ -31,9 +31,6 @@ const createWindow = () => {
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished
@@ -293,7 +290,8 @@ ipcMain.handle('list-literatures', async () => {
             id: literature.id,
             title: literature.title,
             type: literature.type,
-            year: literature.year
+            year: literature.year,
+            authors: literature.authors // 著者情報も追加
           };
         } catch (error) {
           console.error(`ファイル ${file} の読み込みに失敗しました:`, error);

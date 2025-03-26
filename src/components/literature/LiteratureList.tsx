@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import {
   Box,
   Paper,
@@ -14,15 +14,21 @@ import {
   CircularProgress,
   Button,
   IconButton,
+  TextField,
+  Grid,
+  InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 
 interface LiteratureItem {
   id: string;
   title: string;
   type: string;
   year: number;
+  authors?: string[]; // 著者も追加
 }
 
 // 文献タイプの日本語表示
@@ -45,7 +51,17 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
   const [literatures, setLiteratures] = useState<LiteratureItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  
+  // 検索フィルター用の状態
+  const [searchTitle, setSearchTitle] = useState('');
+  const [searchAuthor, setSearchAuthor] = useState('');
+  const [searchYear, setSearchYear] = useState('');
+  
+  // 遅延評価された検索値（UIの応答性を維持しながら重い処理を遅延させる）
+  const deferredSearchTitle = useDeferredValue(searchTitle);
+  const deferredSearchAuthor = useDeferredValue(searchAuthor);
+  const deferredSearchYear = useDeferredValue(searchYear);
 
   // 論文一覧の取得
   const loadLiteratures = async () => {
@@ -65,6 +81,11 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
     loadLiteratures();
   }, []);
 
+  // ページ変更時に最初のページに戻す（検索条件変更時）
+  useEffect(() => {
+    setPage(0);
+  }, [deferredSearchTitle, deferredSearchAuthor, deferredSearchYear]);
+
   // ページ変更ハンドラ
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -80,6 +101,34 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
   const getLiteratureTypeLabel = (type: string) => {
     return LITERATURE_TYPE_LABELS[type] || type;
   };
+
+  // 検索条件をリセットするハンドラ
+  const handleResetSearch = () => {
+    setSearchTitle('');
+    setSearchAuthor('');
+    setSearchYear('');
+  };
+
+  // 検索条件に基づいてフィルタリングされた論文一覧
+  const filteredLiteratures = useMemo(() => {
+    return literatures.filter(item => {
+      // タイトルでフィルタリング
+      const matchesTitle = !deferredSearchTitle || 
+        item.title.toLowerCase().includes(deferredSearchTitle.toLowerCase());
+      
+      // 著者でフィルタリング（著者情報がある場合のみ）
+      const matchesAuthor = !deferredSearchAuthor || 
+        (item.authors && item.authors.some(author => 
+          author.toLowerCase().includes(deferredSearchAuthor.toLowerCase())
+        ));
+      
+      // 出版年でフィルタリング
+      const matchesYear = !deferredSearchYear || 
+        item.year.toString().includes(deferredSearchYear);
+      
+      return matchesTitle && matchesAuthor && matchesYear;
+    });
+  }, [literatures, deferredSearchTitle, deferredSearchAuthor, deferredSearchYear]);
 
   // 空の状態を表示
   const renderEmptyState = () => (
@@ -105,10 +154,124 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
     </Box>
   );
 
+  // 検索条件入力フォームを表示
+  const renderSearchForm = () => (
+    <Box sx={{ mb: 3 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="タイトルで検索"
+            variant="outlined"
+            size="small"
+            value={searchTitle}
+            onChange={(e) => setSearchTitle(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: searchTitle && (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => setSearchTitle('')}
+                    edge="end"
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="著者で検索"
+            variant="outlined"
+            size="small"
+            value={searchAuthor}
+            onChange={(e) => setSearchAuthor(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: searchAuthor && (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => setSearchAuthor('')}
+                    edge="end"
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="出版年で検索"
+            variant="outlined"
+            size="small"
+            value={searchYear}
+            onChange={(e) => setSearchYear(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: searchYear && (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => setSearchYear('')}
+                    edge="end"
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Grid>
+      </Grid>
+      {(searchTitle || searchAuthor || searchYear) && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, alignItems: 'center' }}>
+          {deferredSearchTitle !== searchTitle || deferredSearchAuthor !== searchAuthor || deferredSearchYear !== searchYear ? (
+            <Typography variant="caption" color="text.secondary">
+              検索結果を更新中...
+            </Typography>
+          ) : (
+            <Box />
+          )}
+          <Button 
+            variant="text" 
+            size="small" 
+            onClick={handleResetSearch}
+            startIcon={<ClearIcon />}
+          >
+            検索条件をクリア
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
+
   // 論文一覧テーブルを表示
   const renderLiteratureTable = () => (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          {filteredLiteratures.length}件の論文が見つかりました
+        </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -128,7 +291,7 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
             </TableRow>
           </TableHead>
           <TableBody>
-            {literatures
+            {filteredLiteratures
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((item) => (
                 <TableRow 
@@ -158,9 +321,9 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
         </Table>
       </TableContainer>
       <TablePagination
-        rowsPerPageOptions={[5, 10, 25]}
+        rowsPerPageOptions={[25, 100, 200]}
         component="div"
-        count={literatures.length}
+        count={filteredLiteratures.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
@@ -182,7 +345,10 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
       ) : literatures.length === 0 ? (
         renderEmptyState()
       ) : (
-        renderLiteratureTable()
+        <>
+          {renderSearchForm()}
+          {renderLiteratureTable()}
+        </>
       )}
     </Paper>
   );

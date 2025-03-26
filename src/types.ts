@@ -184,7 +184,7 @@ export interface ProjectAPI {
   // 論文メタデータの読み込み
   loadLiterature: (id: string) => Promise<Literature | null>;
   // 論文メタデータの一覧を取得
-  listLiteratures: () => Promise<{ id: string; title: string; type: string; year: number }[]>;
+  listLiteratures: () => Promise<{ id: string; title: string; type: string; year: number; authors?: string[] }[]>;
   // PDFファイルの選択
   selectPdfFile: () => Promise<string | null>;
   // PDFファイルを開く
