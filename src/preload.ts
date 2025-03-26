@@ -2,7 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { AttributeSchema, Literature, ProjectSettings } from './types';
+import type { AttributeSchema, Literature, ProjectSettings } from './types';
 
 // プロジェクト設定と論文メタデータのためのAPIを公開
 contextBridge.exposeInMainWorld('projectAPI', {
@@ -26,6 +26,18 @@ contextBridge.exposeInMainWorld('projectAPI', {
   
   // PDFファイルの選択ダイアログを開く
   selectPdfFile: () => ipcRenderer.invoke('select-pdf-file'),
+  
+  // PDFファイルを外部アプリケーションで開く
+  openPdfFile: (filePath: string) => ipcRenderer.invoke('open-pdf-file', filePath),
+  
+  // JSONファイルを外部アプリケーションで開く
+  openJsonFile: (id: string) => ipcRenderer.invoke('open-json-file', id),
+  
+  // テキストをクリップボードにコピー
+  copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
+  
+  // 絶対パスを取得
+  getAbsolutePath: (relativePath: string) => ipcRenderer.invoke('get-absolute-path', relativePath),
   
   // 属性スキーマを保存する
   saveAttributeSchema: (schema: AttributeSchema) => ipcRenderer.invoke('save-attribute-schema', schema),

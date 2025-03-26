@@ -37,9 +37,10 @@ const LITERATURE_TYPE_LABELS: Record<string, string> = {
 interface LiteratureListProps {
   onAddNew: () => void;
   onEdit: (id: string) => void;
+  onViewDetails: (id: string) => void;
 }
 
-const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit }) => {
+const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onViewDetails }) => {
   const [literatures, setLiteratures] = useState<LiteratureItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -129,14 +130,22 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit }) => 
             {literatures
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((item) => (
-                <TableRow key={item.id} hover>
+                <TableRow 
+                  key={item.id} 
+                  hover 
+                  onClick={() => onViewDetails(item.id)}
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell>{item.title}</TableCell>
                   <TableCell>{getLiteratureTypeLabel(item.type)}</TableCell>
                   <TableCell>{item.year}</TableCell>
                   <TableCell align="right">
                     <IconButton
                       size="small"
-                      onClick={() => onEdit(item.id)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // 親要素のクリックイベントを防止
+                        onEdit(item.id);
+                      }}
                       aria-label="編集"
                     >
                       <EditIcon fontSize="small" />

@@ -160,6 +160,14 @@ export interface ProjectAPI {
   listLiteratures: () => Promise<{ id: string; title: string; type: string; year: number }[]>;
   // PDFファイルの選択
   selectPdfFile: () => Promise<string | null>;
+  // PDFファイルを開く
+  openPdfFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+  // JSONファイルを開く
+  openJsonFile: (id: string) => Promise<{ success: boolean; error?: string }>;
+  // テキストをクリップボードにコピー
+  copyToClipboard: (text: string) => Promise<{ success: boolean; error?: string }>;
+  // 絶対パスを取得
+  getAbsolutePath: (relativePath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
   // 属性スキーマの保存
   saveAttributeSchema: (schema: AttributeSchema) => Promise<{ success: boolean; id: string; error?: string }>;
   // 属性スキーマの削除

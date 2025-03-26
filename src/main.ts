@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell, clipboard } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { glob } from 'node:fs/promises';
@@ -259,6 +259,102 @@ ipcMain.handle('select-pdf-file', async () => {
   } catch (error) {
     console.error('PDFファイルの選択に失敗しました:', error);
     return null;
+  }
+});
+
+// PDFファイルを開くハンドラー
+ipcMain.handle('open-pdf-file', async (_, filePath) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    let fullPath = filePath;
+    
+    // 相対パスの場合は絶対パスに変換
+    if (settings.repositoryDir && !path.isAbsolute(filePath)) {
+      fullPath = path.join(settings.repositoryDir, filePath);
+    }
+    
+    // ファイルの存在確認
+    try {
+      await fs.access(fullPath);
+    } catch (error) {
+      console.error('PDFファイルが見つかりません:', fullPath);
+      return { success: false, error: 'ファイルが見つかりません' };
+    }
+    
+    // 外部アプリケーションでファイルを開く
+    await shell.openPath(fullPath);
+    return { success: true };
+  } catch (error) {
+    console.error('PDFファイルを開く際にエラーが発生しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// JSONファイルを開くハンドラー
+ipcMain.handle('open-json-file', async (_, id) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // JSONファイルのパスを作成
+    const jsonFilePath = path.join(settings.workingDir, `${id}.json`);
+    
+    // ファイルの存在確認
+    try {
+      await fs.access(jsonFilePath);
+    } catch (error) {
+      console.error('JSONファイルが見つかりません:', jsonFilePath);
+      return { success: false, error: 'ファイルが見つかりません' };
+    }
+    
+    // 外部アプリケーションでファイルを開く
+    await shell.openPath(jsonFilePath);
+    return { success: true };
+  } catch (error) {
+    console.error('JSONファイルを開く際にエラーが発生しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// テキストをクリップボードにコピーするハンドラー
+ipcMain.handle('copy-to-clipboard', async (_, text) => {
+  try {
+    clipboard.writeText(text);
+    return { success: true };
+  } catch (error) {
+    console.error('クリップボードへのコピーに失敗しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 絶対パスを取得するハンドラー
+ipcMain.handle('get-absolute-path', async (_, relativePath) => {
+  try {
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // パスが既に絶対パスかチェック
+    if (path.isAbsolute(relativePath)) {
+      return { success: true, path: relativePath };
+    }
+    
+    // リポジトリディレクトリが設定されているか確認
+    if (!settings.repositoryDir) {
+      return { success: false, error: 'リポジトリディレクトリが設定されていません' };
+    }
+    
+    // 相対パスを絶対パスに変換
+    const absolutePath = path.join(settings.repositoryDir, relativePath);
+    
+    return { success: true, path: absolutePath };
+  } catch (error) {
+    console.error('絶対パスの取得に失敗しました:', error);
+    return { success: false, error: error.message };
   }
 });
 
