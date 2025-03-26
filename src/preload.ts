@@ -50,4 +50,11 @@ contextBridge.exposeInMainWorld('projectAPI', {
   
   // 属性スキーマの一覧を取得する
   listAttributeSchemas: () => ipcRenderer.invoke('list-attribute-schemas'),
+  
+  // 属性情報をエクスポートする
+  exportAttributes: (config?: { format?: 'csv' | 'tsv', fields?: string[], attributeIds?: string[] }) => 
+    ipcRenderer.invoke('export-attributes', config),
+  
+  // エクスポートファイルを保存する
+  saveExportFile: (data: string, format: 'csv' | 'tsv') => ipcRenderer.invoke('save-export-file', data, format),
 });

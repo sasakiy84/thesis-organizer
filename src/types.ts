@@ -147,6 +147,31 @@ export const LiteratureSchema = z.discriminatedUnion('type', [
 
 export type Literature = z.infer<typeof LiteratureSchema>;
 
+// 属性エクスポートのための型定義
+export interface AttributeExportRow {
+  id: string;
+  attribute: string;
+  value: string;
+}
+
+// エクスポート対象のフィールド
+export type ExportField = 
+  | 'id' 
+  | 'title' 
+  | 'year' 
+  | 'authors' 
+  | 'filename' 
+  | 'filepath' 
+  | 'attribute'
+  | 'value';
+
+// エクスポート設定
+export interface ExportConfig {
+  format: 'csv' | 'tsv';
+  fields: ExportField[];
+  attributeIds?: string[]; // 指定した場合、その属性のみエクスポート
+}
+
 // Window APIの型定義
 export interface ProjectAPI {
   selectWorkingDir: () => Promise<string | null>;
@@ -176,4 +201,8 @@ export interface ProjectAPI {
   loadAttributeSchema: (id: string) => Promise<AttributeSchema | null>;
   // 属性スキーマ一覧の取得
   listAttributeSchemas: () => Promise<{ id: string; name: string }[]>;
+  // 属性情報のエクスポート
+  exportAttributes: (format?: 'csv' | 'tsv') => Promise<{ success: boolean; data?: string; error?: string }>;
+  // エクスポートファイルの保存
+  saveExportFile: (data: string, format: 'csv' | 'tsv') => Promise<{ success: boolean; filePath?: string; error?: string }>;
 }

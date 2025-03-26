@@ -18,11 +18,18 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
+  Tooltip,
+  Checkbox,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { AttributeSchema } from '../../types';
+import ExportDialog from './ExportDialog';
 
 interface AttributeSchemaListProps {
   onCreateNew: () => void;
@@ -47,6 +54,10 @@ const AttributeSchemaList: React.FC<AttributeSchemaListProps> = ({
     message: '',
     severity: 'info',
   });
+  const [selectedSchemas, setSelectedSchemas] = useState<string[]>([]);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportAllDialogOpen, setExportAllDialogOpen] = useState(false);
+  const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);
 
   // 属性スキーマ一覧を取得
   const loadSchemas = async () => {
@@ -106,6 +117,8 @@ const AttributeSchemaList: React.FC<AttributeSchemaListProps> = ({
         
         // 一覧を更新
         await loadSchemas();
+        // 選択状態をリセット
+        setSelectedSchemas([]);
       } else {
         throw new Error(result.error);
       }
@@ -126,17 +139,88 @@ const AttributeSchemaList: React.FC<AttributeSchemaListProps> = ({
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
+  // 属性の選択状態を切り替え
+  const handleToggleSelect = (id: string) => {
+    setSelectedSchemas(prevSelected => {
+      if (prevSelected.includes(id)) {
+        return prevSelected.filter(schemaId => schemaId !== id);
+      } else {
+        return [...prevSelected, id];
+      }
+    });
+  };
+
+  // 全選択/解除のトグル
+  const handleToggleSelectAll = () => {
+    if (selectedSchemas.length === schemas.length) {
+      // すべて選択済みなら解除
+      setSelectedSchemas([]);
+    } else {
+      // それ以外なら全選択
+      setSelectedSchemas(schemas.map(schema => schema.id));
+    }
+  };
+
+  // アクションメニューを開く
+  const handleOpenActionMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setActionMenuAnchor(event.currentTarget);
+  };
+
+  // アクションメニューを閉じる
+  const handleCloseActionMenu = () => {
+    setActionMenuAnchor(null);
+  };
+
+  // 選択した属性のエクスポートダイアログを開く
+  const handleOpenExportSelected = () => {
+    handleCloseActionMenu();
+    setExportDialogOpen(true);
+  };
+
+  // すべての属性のエクスポートダイアログを開く
+  const handleOpenExportAll = () => {
+    handleCloseActionMenu();
+    setExportAllDialogOpen(true);
+  };
+
   return (
     <Paper elevation={3} sx={{ p: 3, width: '100%', mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">属性定義一覧</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={onCreateNew}
-        >
-          新規作成
-        </Button>
+        <Box>
+          {schemas.length > 0 && (
+            <>
+              <Tooltip title="エクスポート">
+                <IconButton
+                  onClick={handleOpenActionMenu}
+                  sx={{ mr: 1 }}
+                >
+                  <FileDownloadIcon />
+                </IconButton>
+              </Tooltip>
+              <Menu
+                anchorEl={actionMenuAnchor}
+                open={Boolean(actionMenuAnchor)}
+                onClose={handleCloseActionMenu}
+              >
+                <MenuItem onClick={handleOpenExportAll}>すべての属性をエクスポート</MenuItem>
+                <MenuItem 
+                  onClick={handleOpenExportSelected}
+                  disabled={selectedSchemas.length === 0}
+                >
+                  選択した属性をエクスポート
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={onCreateNew}
+          >
+            新規作成
+          </Button>
+        </Box>
       </Box>
 
       {loading ? (
@@ -148,35 +232,73 @@ const AttributeSchemaList: React.FC<AttributeSchemaListProps> = ({
           属性定義がまだありません。「新規作成」ボタンをクリックして作成してください。
         </Typography>
       ) : (
-        <List>
-          {schemas.map((schema, index) => (
-            <React.Fragment key={schema.id}>
-              {index > 0 && <Divider />}
-              <ListItem>
-                <ListItemText
-                  primary={schema.name}
-                />
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    aria-label="edit"
-                    onClick={() => onEdit(schema.id)}
+        <>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+            <Checkbox
+              checked={selectedSchemas.length === schemas.length}
+              indeterminate={selectedSchemas.length > 0 && selectedSchemas.length < schemas.length}
+              onChange={handleToggleSelectAll}
+            />
+            <Typography variant="body2">
+              {selectedSchemas.length > 0 
+                ? `${selectedSchemas.length}個の属性を選択中` 
+                : '属性を選択'}
+            </Typography>
+          </Box>
+
+          <List>
+            {schemas.map((schema, index) => (
+              <React.Fragment key={schema.id}>
+                {index > 0 && <Divider />}
+                <ListItem>
+                  <Checkbox
+                    checked={selectedSchemas.includes(schema.id)}
+                    onChange={() => handleToggleSelect(schema.id)}
+                    edge="start"
                     sx={{ mr: 1 }}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleOpenDeleteDialog(schema.id)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            </React.Fragment>
-          ))}
-        </List>
+                  />
+                  <ListItemText
+                    primary={schema.name}
+                  />
+                  <ListItemSecondaryAction>
+                    <Tooltip title="個別エクスポート">
+                      <IconButton
+                        edge="end"
+                        aria-label="export"
+                        onClick={() => {
+                          setSelectedSchemas([schema.id]);
+                          setExportDialogOpen(true);
+                        }}
+                        sx={{ mr: 1 }}
+                      >
+                        <FileDownloadIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="編集">
+                      <IconButton
+                        edge="end"
+                        aria-label="edit"
+                        onClick={() => onEdit(schema.id)}
+                        sx={{ mr: 1 }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="削除">
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => handleOpenDeleteDialog(schema.id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              </React.Fragment>
+            ))}
+          </List>
+        </>
       )}
 
       {/* 削除確認ダイアログ */}
@@ -197,6 +319,21 @@ const AttributeSchemaList: React.FC<AttributeSchemaListProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 選択した属性のエクスポートダイアログ */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        attributeSchemas={schemas}
+        selectedAttributeIds={selectedSchemas}
+      />
+
+      {/* すべての属性のエクスポートダイアログ */}
+      <ExportDialog
+        open={exportAllDialogOpen}
+        onClose={() => setExportAllDialogOpen(false)}
+        attributeSchemas={schemas}
+      />
 
       {/* スナックバー */}
       <Snackbar

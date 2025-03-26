@@ -507,3 +507,234 @@ ipcMain.handle('list-attribute-schemas', async () => {
     return [];
   }
 });
+
+// 属性情報をエクスポートするハンドラー
+ipcMain.handle('export-attributes', async (_, config) => {
+  try {
+    // デフォルト設定
+    const exportConfig = {
+      format: 'csv',
+      fields: ['id', 'attribute', 'value'],
+      attributeIds: undefined,
+      ...config
+    };
+    
+    // 現在のプロジェクト設定を取得
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    
+    // Working Dirからすべての論文ファイルを取得
+    const files = await fs.readdir(settings.workingDir);
+    const literatureFiles = files.filter(file => 
+      file.endsWith('.json') && 
+      file !== 'project-metadata.json' && 
+      !file.endsWith('attribute-schema.json')
+    );
+    
+    // 論文メタデータの配列を準備
+    const literatures = [];
+    const attributeSchemas = new Map();
+    
+    // すべての論文メタデータを読み込む
+    for (const file of literatureFiles) {
+      try {
+        const filePath = path.join(settings.workingDir, file);
+        const data = await fs.readFile(filePath, 'utf-8');
+        const literature = JSON.parse(data);
+        literatures.push(literature);
+      } catch (error) {
+        console.error(`ファイル ${file} の読み込みに失敗しました:`, error);
+      }
+    }
+    
+    // 必要な属性スキーマを読み込む
+    if (exportConfig.fields.includes('attribute')) {
+      try {
+        const attributesDir = path.join(settings.workingDir, 'attributes');
+        const schemaFiles = [];
+        
+        // 属性スキーマファイルを検索
+        for await (const file of glob('*.attribute-schema.json', { 
+          cwd: attributesDir,
+          withFileTypes: false
+        })) {
+          schemaFiles.push(file);
+        }
+        
+        // スキーマを読み込む
+        for (const file of schemaFiles) {
+          try {
+            const filePath = path.join(attributesDir, file);
+            const data = await fs.readFile(filePath, 'utf-8');
+            const schema = JSON.parse(data);
+            attributeSchemas.set(schema.id, schema);
+          } catch (schemaError) {
+            console.error(`スキーマファイル ${file} の読み込みに失敗しました:`, schemaError);
+          }
+        }
+      } catch (error) {
+        console.error('属性スキーマの読み込みに失敗しました:', error);
+      }
+    }
+    
+    // tidy data形式のデータを準備
+    const exportRows = [];
+    
+    // 区切り文字を設定
+    const delimiter = exportConfig.format === 'csv' ? ',' : '\t';
+    
+    // ヘッダー行を作成
+    const headers = exportConfig.fields;
+    let exportData = headers.join(delimiter) + '\n';
+    
+    // すべての論文データを処理
+    for (const literature of literatures) {
+      // 基本データの行を作成（属性以外）
+      if (!exportConfig.fields.includes('attribute')) {
+        const row = {};
+        
+        // 要求されたフィールドを追加
+        for (const field of exportConfig.fields) {
+          if (field === 'id') {
+            row['id'] = literature.id;
+          } else if (field === 'title') {
+            row['title'] = literature.title;
+          } else if (field === 'year') {
+            row['year'] = literature.year?.toString() || '';
+          } else if (field === 'authors') {
+            row['authors'] = Array.isArray(literature.authors) 
+              ? literature.authors.join('; ') 
+              : '';
+          } else if (field === 'filename') {
+            // ファイル名はパスから抽出
+            if (literature.pdfFilePath) {
+              row['filename'] = path.basename(literature.pdfFilePath);
+            } else {
+              row['filename'] = '';
+            }
+          } else if (field === 'filepath') {
+            row['filepath'] = literature.pdfFilePath || '';
+          }
+        }
+        
+        // 行をエクスポートデータに追加
+        exportRows.push(row);
+      }
+      // 属性を含むデータを処理
+      else if (literature.attributes && Array.isArray(literature.attributes)) {
+        // 論文に属性が付与されていれば処理
+        for (const attr of literature.attributes) {
+          // 特定の属性IDが指定されている場合はフィルタリング
+          if (exportConfig.attributeIds && 
+              exportConfig.attributeIds.length > 0 && 
+              !exportConfig.attributeIds.includes(attr.attributeId)) {
+            continue;
+          }
+          
+          if (attr.values && Array.isArray(attr.values)) {
+            // 属性名を取得
+            const attributeSchema = attributeSchemas.get(attr.attributeId);
+            const attributeName = attributeSchema ? attributeSchema.name : attr.attributeId;
+            
+            // 属性の各値を行として追加
+            for (const value of attr.values) {
+              const row = {};
+              
+              // 要求されたフィールドを追加
+              for (const field of exportConfig.fields) {
+                if (field === 'id') {
+                  row['id'] = literature.id;
+                } else if (field === 'title') {
+                  row['title'] = literature.title;
+                } else if (field === 'year') {
+                  row['year'] = literature.year?.toString() || '';
+                } else if (field === 'authors') {
+                  row['authors'] = Array.isArray(literature.authors) 
+                    ? literature.authors.join('; ') 
+                    : '';
+                } else if (field === 'filename') {
+                  // ファイル名はパスから抽出
+                  if (literature.pdfFilePath) {
+                    row['filename'] = path.basename(literature.pdfFilePath);
+                  } else {
+                    row['filename'] = '';
+                  }
+                } else if (field === 'filepath') {
+                  row['filepath'] = literature.pdfFilePath || '';
+                } else if (field === 'attribute') {
+                  row['attribute'] = attributeName;
+                  row['value'] = value;
+                }
+              }
+              
+              exportRows.push(row);
+            }
+          }
+        }
+      }
+    }
+    
+    // 空の行セットの場合は処理せず、空のヘッダだけ返す
+    if (exportRows.length === 0) {
+      return { success: true, data: exportData };
+    }
+    
+    // データ行を作成
+    for (const row of exportRows) {
+      const rowValues = exportConfig.fields.map(field => {
+        const value = row[field] || '';
+        return escapeValue(value, delimiter);
+      });
+      
+      exportData += rowValues.join(delimiter) + '\n';
+    }
+    
+    return { success: true, data: exportData };
+  } catch (error) {
+    console.error('属性情報のエクスポートに失敗しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 値をCSV/TSV用にエスケープする関数
+function escapeValue(value, delimiter) {
+  if (typeof value !== 'string') {
+    value = String(value);
+  }
+  
+  // 値内に区切り文字やダブルクォートが含まれる場合はエスケープする
+  if (value.includes(delimiter) || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  
+  return value;
+}
+
+// エクスポートファイルを保存するハンドラー
+ipcMain.handle('save-export-file', async (_, data, format = 'csv') => {
+  try {
+    const extension = format === 'csv' ? '.csv' : '.tsv';
+    const fileTypeDesc = format === 'csv' ? 'CSV Files' : 'TSV Files';
+    
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: '属性情報のエクスポート',
+      defaultPath: `attributes_export${extension}`,
+      filters: [
+        { name: fileTypeDesc, extensions: [extension.substring(1)] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['createDirectory']
+    });
+    
+    if (canceled || !filePath) {
+      return { success: false, error: 'キャンセルされました' };
+    }
+    
+    await fs.writeFile(filePath, data, 'utf-8');
+    
+    return { success: true, filePath };
+  } catch (error) {
+    console.error('エクスポートファイルの保存に失敗しました:', error);
+    return { success: false, error: error.message };
+  }
+});
