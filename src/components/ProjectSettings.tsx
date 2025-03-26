@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import type React from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   TextField, 
@@ -7,9 +8,13 @@ import {
   Paper, 
   Grid,
   Snackbar,
-  Alert
+  Alert,
+  Divider,
+  Stack
 } from '@mui/material';
-import { ProjectSettings, ProjectSettingsSchema } from '../types';
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import { type ProjectSettings, ProjectSettingsSchema } from '../types';
 
 const ProjectSettingsForm: React.FC = () => {
   const [settings, setSettings] = useState<ProjectSettings>({
@@ -71,7 +76,7 @@ const ProjectSettingsForm: React.FC = () => {
       if (errors.workingDir) {
         setErrors(prev => {
           const newErrors = { ...prev };
-          delete newErrors.workingDir;
+          newErrors.workingDir = undefined;
           return newErrors;
         });
       }
@@ -101,6 +106,9 @@ const ProjectSettingsForm: React.FC = () => {
           message: 'プロジェクト設定を保存しました',
           severity: 'success'
         });
+        
+        // windowをリロードして設定を反映
+        window.location.reload();
       } else {
         setSnackbar({
           open: true,
@@ -129,6 +137,72 @@ const ProjectSettingsForm: React.FC = () => {
     }
   };
 
+  // 既存プロジェクトに切り替え
+  const handleSwitchProject = async () => {
+    const dir = await window.projectAPI.selectWorkingDir();
+    if (dir) {
+      setIsLoading(true);
+      try {
+        // 選択したディレクトリにproject-metadata.jsonが存在するか確認
+        const result = await window.projectAPI.switchProject(dir);
+        
+        if (result.success) {
+          setSnackbar({
+            open: true,
+            message: 'プロジェクトを切り替えました',
+            severity: 'success'
+          });
+          
+          // windowをリロードして設定を反映
+          window.location.reload();
+        } else {
+          setSnackbar({
+            open: true,
+            message: `プロジェクト切り替えに失敗しました: ${result.error}`,
+            severity: 'error'
+          });
+        }
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: `エラーが発生しました: ${error.message}`,
+          severity: 'error'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // 新規プロジェクト作成
+  const handleCreateNewProject = async () => {
+    const dir = await window.projectAPI.selectWorkingDir();
+    if (dir) {
+      setSettings(prev => ({ 
+        ...prev, 
+        workingDir: dir,
+        projectName: '', // 新規プロジェクト作成時は項目をクリア
+        projectDescription: '',
+        repositoryDir: ''
+      }));
+      
+      // エラーをクリア
+      if (errors.workingDir) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          newErrors.workingDir = undefined;
+          return newErrors;
+        });
+      }
+      
+      setSnackbar({
+        open: true,
+        message: '新規プロジェクトのフォルダを選択しました。プロジェクト情報を入力して保存してください。',
+        severity: 'success'
+      });
+    }
+  };
+
   // スナックバーを閉じる
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
@@ -139,6 +213,36 @@ const ProjectSettingsForm: React.FC = () => {
       <Typography variant="h5" gutterBottom>
         プロジェクト設定
       </Typography>
+      
+      {/* プロジェクト切り替え・新規作成ボタン */}
+      <Box sx={{ mb: 4 }}>
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<FolderOpenIcon />}
+            onClick={handleSwitchProject}
+            disabled={isLoading}
+            fullWidth
+          >
+            既存プロジェクトを開く
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<CreateNewFolderIcon />}
+            onClick={handleCreateNewProject}
+            disabled={isLoading}
+            fullWidth
+          >
+            新規プロジェクト作成
+          </Button>
+        </Stack>
+        <Typography variant="body2" color="text.secondary">
+          既存プロジェクトを開く場合は、プロジェクトのWorking Directoryを選択してください。
+          新規プロジェクトを作成する場合は、新しいフォルダを選択し、プロジェクト情報を入力してください。
+        </Typography>
+      </Box>
+      
+      <Divider sx={{ my: 2 }} />
 
       <Box component="form" noValidate sx={{ mt: 3 }}>
         <Grid container spacing={3}>

@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { Container, Box, Typography, Button, Snackbar, Alert } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AttributeSchemaList from './AttributeSchemaList';
 import AttributeSchemaForm from './AttributeSchemaForm';
-import { AttributeSchema } from '../../types';
+import type { AttributeSchema } from '../../types';
 
 enum ViewMode {
-  LIST,
-  CREATE,
-  EDIT
+  LIST = 0,
+  CREATE = 1,
+  EDIT = 2
 }
 
 const AttributeManagement: React.FC = () => {

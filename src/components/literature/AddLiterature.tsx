@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { 
   Box, 
   Snackbar, 
   Alert 
 } from '@mui/material';
-import { Literature, LiteratureSchema } from '../../types';
+import { type Literature, LiteratureSchema } from '../../types';
 import LiteratureForm from './LiteratureForm';
 
 interface AddLiteratureProps {

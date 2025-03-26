@@ -144,9 +144,8 @@ const AttributeSchemaList: React.FC<AttributeSchemaListProps> = ({
     setSelectedSchemas(prevSelected => {
       if (prevSelected.includes(id)) {
         return prevSelected.filter(schemaId => schemaId !== id);
-      } else {
-        return [...prevSelected, id];
       }
+        return [...prevSelected, id];
     });
   };
 

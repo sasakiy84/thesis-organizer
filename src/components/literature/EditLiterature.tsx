@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import type React from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Snackbar, 
@@ -9,7 +10,7 @@ import {
   Button
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { Literature, LiteratureSchema } from '../../types';
+import { type Literature, LiteratureSchema } from '../../types';
 import LiteratureForm from './LiteratureForm';
 
 interface EditLiteratureProps {

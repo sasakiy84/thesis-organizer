@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('projectAPI', {
   // 保存済みのプロジェクト設定を読み込む
   loadProjectSettings: () => ipcRenderer.invoke('load-project-settings'),
   
+  // 既存プロジェクトに切り替える
+  switchProject: (workingDir: string) => ipcRenderer.invoke('switch-project', workingDir),
+  
   // 論文メタデータを保存する
   saveLiterature: (literature: Literature) => ipcRenderer.invoke('save-literature', literature),
   

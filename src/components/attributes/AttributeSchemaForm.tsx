@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import {
   Box,
   Button,
@@ -15,8 +16,7 @@ import {
   Alert,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { AttributeSchema, AttributeValue, AttributeValueSchema } from '../../types';
+import type { AttributeSchema, AttributeValue, AttributeValueSchema } from '../../types';
 
 interface AttributeSchemaFormProps {
   initialData?: AttributeSchema;

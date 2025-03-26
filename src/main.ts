@@ -108,6 +108,16 @@ ipcMain.handle('save-project-settings', async (_, settings) => {
       }
     }
     
+    // 論文データディレクトリを作成
+    const literaturesDirPath = path.join(settings.workingDir, 'literatures');
+    try {
+      await fs.mkdir(literaturesDirPath, { recursive: true });
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error;
+      }
+    }
+    
     return { success: true };
   } catch (error) {
     console.error('プロジェクト設定の保存に失敗しました:', error);
@@ -127,6 +137,58 @@ ipcMain.handle('load-project-settings', async () => {
     }
     console.error('プロジェクト設定の読み込みに失敗しました:', error);
     return null;
+  }
+});
+
+// 既存プロジェクトに切り替えるハンドラー
+ipcMain.handle('switch-project', async (_, workingDir) => {
+  try {
+    // 指定されたディレクトリにproject-metadata.jsonが存在するか確認
+    const metadataFilePath = path.join(workingDir, 'project-metadata.json');
+    
+    try {
+      await fs.access(metadataFilePath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return { 
+          success: false, 
+          error: '選択されたフォルダは有効なプロジェクトではありません。project-metadata.jsonが見つかりません。' 
+        };
+      }
+      throw error;
+    }
+    
+    // メタデータを読み込む
+    const metadataData = await fs.readFile(metadataFilePath, 'utf-8');
+    const metadata = JSON.parse(metadataData);
+    
+    // プロジェクト設定を更新
+    const settings = {
+      projectName: metadata.projectName,
+      projectDescription: metadata.projectDescription,
+      workingDir: workingDir,
+      repositoryDir: metadata.repositoryDir || '',
+    };
+    
+    // 設定ファイルに保存
+    await fs.writeFile(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8');
+    
+    // literatures ディレクトリが存在するか確認し、なければ作成
+    const literaturesDirPath = path.join(workingDir, 'literatures');
+    try {
+      await fs.access(literaturesDirPath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        await fs.mkdir(literaturesDirPath, { recursive: true });
+      } else {
+        throw error;
+      }
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('プロジェクト切り替えに失敗しました:', error);
+    return { success: false, error: error.message };
   }
 });
 
@@ -151,8 +213,18 @@ ipcMain.handle('save-literature', async (_, literature) => {
     }
     literature.updatedAt = now;
     
-    // Working Dirに論文メタデータを保存
-    const literatureFilePath = path.join(settings.workingDir, `${id}.json`);
+    // literatures ディレクトリを確認し、存在しなければ作成
+    const literaturesDirPath = path.join(settings.workingDir, 'literatures');
+    try {
+      await fs.mkdir(literaturesDirPath, { recursive: true });
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error;
+      }
+    }
+    
+    // literatures ディレクトリに論文メタデータを保存
+    const literatureFilePath = path.join(literaturesDirPath, `${id}.literature.json`);
     await fs.writeFile(literatureFilePath, JSON.stringify(literature, null, 2), 'utf-8');
     
     return { success: true, id };
@@ -170,7 +242,7 @@ ipcMain.handle('load-literature', async (_, id) => {
     const settings = JSON.parse(settingsData);
     
     // 指定されたIDの論文メタデータを読み込む
-    const literatureFilePath = path.join(settings.workingDir, `${id}.json`);
+    const literatureFilePath = path.join(settings.workingDir, 'literatures', `${id}.literature.json`);
     const data = await fs.readFile(literatureFilePath, 'utf-8');
     return JSON.parse(data);
   } catch (error) {
@@ -186,19 +258,35 @@ ipcMain.handle('list-literatures', async () => {
     const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
     const settings = JSON.parse(settingsData);
     
-    // Working Dirからすべての.jsonファイルを取得
-    const files = await fs.readdir(settings.workingDir);
-    const literatureFiles = files.filter(file => 
-      file.endsWith('.json') && 
-      file !== 'project-metadata.json' && 
-      !file.endsWith('attribute-schema.json')
-    );
+    // literatures ディレクトリからすべての .literature.json ファイルを取得
+    const literaturesDirPath = path.join(settings.workingDir, 'literatures');
+    
+    // ディレクトリが存在するか確認
+    try {
+      await fs.access(literaturesDirPath);
+    } catch (error) {
+      // ディレクトリが存在しない場合は作成
+      if (error.code === 'ENOENT') {
+        await fs.mkdir(literaturesDirPath, { recursive: true });
+        return []; // 空の配列を返す
+      }
+      throw error;
+    }
+    
+    // glob関数を使用して .literature.json ファイルを検索
+    const files = [];
+    for await (const file of glob('*.literature.json', { 
+      cwd: literaturesDirPath,
+      withFileTypes: false
+    })) {
+      files.push(file);
+    }
     
     // メタデータの一覧を作成
     const literatures = await Promise.all(
-      literatureFiles.map(async (file) => {
+      files.map(async (file) => {
         try {
-          const filePath = path.join(settings.workingDir, file);
+          const filePath = path.join(literaturesDirPath, file);
           const data = await fs.readFile(filePath, 'utf-8');
           const literature = JSON.parse(data);
           return {
@@ -301,7 +389,7 @@ ipcMain.handle('open-json-file', async (_, id) => {
     const settings = JSON.parse(settingsData);
     
     // JSONファイルのパスを作成
-    const jsonFilePath = path.join(settings.workingDir, `${id}.json`);
+    const jsonFilePath = path.join(settings.workingDir, 'literatures', `${id}.literature.json`);
     
     // ファイルの存在確認
     try {

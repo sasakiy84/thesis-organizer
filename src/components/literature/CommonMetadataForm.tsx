@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import {
   Box,
-  Button,
   TextField,
   Typography,
   Grid,
@@ -10,10 +10,9 @@ import {
   InputAdornment,
   Divider,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import FileIcon from '@mui/icons-material/InsertDriveFile';
-import { AttributeApplication } from '../../types';
+import type { AttributeApplication } from '../../types';
 import AttributeSelector from '../attributes/AttributeSelector';
 
 interface CommonFormData {

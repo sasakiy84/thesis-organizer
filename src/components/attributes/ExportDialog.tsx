@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -18,7 +19,7 @@ import {
   Box,
   Alert,
 } from '@mui/material';
-import { ExportField } from '../../types';
+import type { ExportField } from '../../types';
 
 interface ExportDialogProps {
   open: boolean;

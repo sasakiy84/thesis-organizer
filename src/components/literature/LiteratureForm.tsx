@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { 
   Box, 
   Button, 
-  TextField, 
   Typography, 
   Paper, 
   Grid,
@@ -10,12 +10,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Chip,
   Snackbar,
   Alert,
-  IconButton,
 } from '@mui/material';
-import { Literature } from '../../types';
+import type { Literature } from '../../types';
 import JournalArticleForm from './JournalArticleForm';
 import ConferencePaperForm from './ConferencePaperForm';
 import BookForm from './BookForm';

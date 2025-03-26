@@ -177,6 +177,8 @@ export interface ProjectAPI {
   selectWorkingDir: () => Promise<string | null>;
   saveProjectSettings: (settings: ProjectSettings) => Promise<{ success: boolean; error?: string }>;
   loadProjectSettings: () => Promise<ProjectSettings | null>;
+  // 既存プロジェクトに切り替え
+  switchProject: (workingDir: string) => Promise<{ success: boolean; error?: string }>;
   // 論文メタデータの保存
   saveLiterature: (literature: Literature) => Promise<{ success: boolean; id: string; error?: string }>;
   // 論文メタデータの読み込み
