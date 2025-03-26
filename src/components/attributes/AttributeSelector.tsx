@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import type React from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -7,18 +8,13 @@ import {
   Select,
   MenuItem,
   Chip,
-  IconButton,
   TextField,
   Button,
-  InputAdornment,
   Grid,
   Paper,
-  Divider,
   FormHelperText,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { AttributeApplication, AttributeSchema } from '../../types';
+import type { AttributeApplication, AttributeSchema } from '../../types';
 
 interface AttributeSelectorProps {
   value: AttributeApplication[];
@@ -54,11 +50,11 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
         const details = await Promise.all(detailsPromises);
 
         const detailsMap: Record<string, AttributeSchema> = {};
-        details.forEach(schema => {
+        for (const schema of details) {
           if (schema) {
             detailsMap[schema.id] = schema;
           }
-        });
+        }
 
         setAttributeDetails(detailsMap);
       } else {
@@ -129,8 +125,7 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
       onChange([...value, newAttribute]);
     }
     
-    // 選択をリセット
-    setSelectedAttributeId('');
+    // 値の入力のみリセット（選択中の属性IDはリセットしない）
     setNewValue('');
   };
 
@@ -216,6 +211,36 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
           ))}
         </Box>
         
+        {/* 定義済み値がある場合、まだ選択されていない値を選択肢として表示 */}
+        {schema.predefinedValues && schema.predefinedValues.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" gutterBottom fontWeight="bold">
+              選択肢から追加:
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+              {schema.predefinedValues
+                .filter(option => !attr.values.includes(option.value))
+                .map(option => (
+                  <Chip
+                    key={option.id}
+                    label={option.value}
+                    onClick={() => handlePredefinedValueSelect(attr.attributeId, option.value)}
+                    clickable
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                    sx={{ borderStyle: 'dashed' }}
+                  />
+                ))}
+            </Box>
+            {schema.predefinedValues.every(option => attr.values.includes(option.value)) && (
+              <Typography variant="caption" color="text.secondary">
+                すべての選択肢が選択されています
+              </Typography>
+            )}
+          </Box>
+        )}
+        
         {/* 自由入力が許可されている場合、追加の入力フィールドを表示 */}
         {schema.allowFreeText && (
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -227,7 +252,7 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
                 setSelectedAttributeId(attr.attributeId);
                 setNewValue(e.target.value);
               }}
-              onKeyPress={(e) => {
+              onKeyUp={(e) => {
                 if (e.key === 'Enter' && newValue.trim()) {
                   e.preventDefault();
                   handleAddFreeText(attr.attributeId);
@@ -311,13 +336,13 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
                 
                 {/* 定義済み値がある場合はそれを表示 */}
                 {attributeDetails[selectedAttributeId].predefinedValues && 
-                 attributeDetails[selectedAttributeId].predefinedValues!.length > 0 && (
+                 attributeDetails[selectedAttributeId].predefinedValues?.length > 0 && (
                   <Box>
                     <Typography variant="body2" gutterBottom fontWeight="bold" sx={{ mt: 1 }}>
                       選択肢:
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                      {attributeDetails[selectedAttributeId].predefinedValues!.map(option => (
+                      {attributeDetails[selectedAttributeId].predefinedValues?.map(option => (
                         <Chip
                           key={option.id}
                           label={option.value}
@@ -340,7 +365,7 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
                       label="カスタム値"
                       value={newValue}
                       onChange={(e) => setNewValue(e.target.value)}
-                      onKeyPress={(e) => {
+                      onKeyUp={(e) => {
                         if (e.key === 'Enter' && newValue.trim()) {
                           e.preventDefault();
                           handleAddFreeText(selectedAttributeId);

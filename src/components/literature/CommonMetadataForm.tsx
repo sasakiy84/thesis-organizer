@@ -78,6 +78,8 @@ const CommonMetadataForm: React.FC<CommonMetadataFormProps> = ({
 
   // 属性の変更
   const handleAttributesChange = (attributes: AttributeApplication[]) => {
+    // 属性の変更をログで確認
+    console.log('属性が変更されました:', attributes);
     onChange({ attributes });
   };
 

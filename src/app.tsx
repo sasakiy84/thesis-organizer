@@ -13,7 +13,9 @@ import {
 import Navigation from './components/Navigation';
 import ProjectSettingsForm from './components/ProjectSettings';
 import AddLiterature from './components/literature/AddLiterature';
+import EditLiterature from './components/literature/EditLiterature';
 import LiteratureList from './components/literature/LiteratureList';
+import LiteratureDetails from './components/literature/LiteratureDetails';
 import AttributeManagement from './components/attributes/AttributeManagement';
 
 // アプリケーションのテーマを設定
@@ -47,7 +49,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<string>('settings');
   // プロジェクト設定の読み込み状態
   const [projectLoaded, setProjectLoaded] = useState<boolean | null>(null);
-  // 選択中の論文ID（編集用）
+  // 選択中の論文ID（編集/詳細表示用）
   const [selectedLiteratureId, setSelectedLiteratureId] = useState<string | null>(null);
   
   // コンポーネントマウント時にプロジェクト設定を確認
@@ -74,7 +76,7 @@ const App: React.FC = () => {
   // ページ遷移ハンドラ
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
-    if (page !== 'editLiterature') {
+    if (page !== 'editLiterature' && page !== 'viewLiterature') {
       setSelectedLiteratureId(null);
     }
   };
@@ -88,6 +90,12 @@ const App: React.FC = () => {
   const handleEditLiterature = (id: string) => {
     setSelectedLiteratureId(id);
     setCurrentPage('editLiterature');
+  };
+  
+  // 論文詳細表示ハンドラ
+  const handleViewLiterature = (id: string) => {
+    setSelectedLiteratureId(id);
+    setCurrentPage('viewLiterature');
   };
   
   // 現在のページに応じたコンテンツを表示
@@ -114,14 +122,32 @@ const App: React.FC = () => {
         return (
           <LiteratureList 
             onAddNew={() => handleNavigate('addLiterature')} 
-            onEdit={handleEditLiterature} 
+            onEdit={handleEditLiterature}
+            onViewDetails={handleViewLiterature}
           />
         );
       case 'addLiterature':
         return <AddLiterature onSaved={handleLiteratureSaved} />;
       case 'editLiterature':
-        // TODO: 論文編集画面の実装
-        return <div>論文編集（ID: {selectedLiteratureId}）</div>;
+        return selectedLiteratureId ? (
+          <EditLiterature
+            literatureId={selectedLiteratureId}
+            onSaved={handleLiteratureSaved}
+            onBack={() => handleNavigate('literatureList')}
+          />
+        ) : (
+          <Alert severity="error" sx={{ mt: 4 }}>
+            編集する論文が選択されていません
+          </Alert>
+        );
+      case 'viewLiterature':
+        return (
+          <LiteratureDetails
+            literatureId={selectedLiteratureId || ''}
+            onBack={() => handleNavigate('literatureList')}
+            onEdit={handleEditLiterature}
+          />
+        );
       case 'attributeManagement':
         return <AttributeManagement />;
       default:

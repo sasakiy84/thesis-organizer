@@ -60,13 +60,18 @@ const LiteratureForm: React.FC<LiteratureFormProps> = ({ initialData, onSave }) 
       authors: initialData.authors,
       notes: initialData.notes || '',
       pdfFilePath: initialData.pdfFilePath || '',
+      attributes: initialData.attributes || [],  // 属性データを明示的に初期化
     } : {})
   });
   
-  // 型ごとの追加データの状態
-  const [additionalData, setAdditionalData] = useState<Record<string, any>>(
-    initialData ? { ...initialData } : {}
-  );
+  // 型ごとの追加データの状態（属性情報を含む）
+  const [additionalData, setAdditionalData] = useState<Record<string, any>>(() => {
+    if (initialData) {
+      // initialDataのクローンを作成
+      return { ...initialData };
+    }
+    return {};
+  });
   
   // エラー状態
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -93,6 +98,11 @@ const LiteratureForm: React.FC<LiteratureFormProps> = ({ initialData, onSave }) 
 
   // 共通データの更新
   const handleCommonDataChange = (data: Partial<typeof commonData>) => {
+    // 属性データが含まれる場合はコンソールに出力
+    if ('attributes' in data) {
+      console.log('handleCommonDataChange - 属性データの更新:', data.attributes);
+    }
+    
     setCommonData(prev => ({ ...prev, ...data }));
     
     // 更新されたフィールドのエラーをクリア
@@ -138,12 +148,22 @@ const LiteratureForm: React.FC<LiteratureFormProps> = ({ initialData, onSave }) 
         return;
       }
       
-      // 文献データを作成
+      // 属性データが共通データに含まれていることを確認
+      console.log('送信前の共通データ:', commonData);
+      console.log('送信前の属性データ:', commonData.attributes);
+      
+      // 文献データを作成（属性データの保持を確認）
       const literatureData: any = {
         ...commonData,
         ...additionalData,
         type,
+        // 属性データを明示的に設定
+        attributes: commonData.attributes || [],
       };
+      
+      // デバッグ用: 保存される文献データをコンソールに出力
+      console.log('保存される文献データ:', literatureData);
+      console.log('属性情報:', literatureData.attributes);
       
       // 親コンポーネントに保存を通知
       onSave(literatureData as Literature);
