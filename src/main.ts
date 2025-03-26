@@ -291,7 +291,8 @@ ipcMain.handle('list-literatures', async () => {
             title: literature.title,
             type: literature.type,
             year: literature.year,
-            authors: literature.authors // 著者情報も追加
+            authors: literature.authors, // 著者情報も追加
+            attributes: literature.attributes // 属性情報も追加
           };
         } catch (error) {
           console.error(`ファイル ${file} の読み込みに失敗しました:`, error);

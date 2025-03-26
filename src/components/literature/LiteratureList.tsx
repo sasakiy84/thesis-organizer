@@ -17,11 +17,14 @@ import {
   TextField,
   Grid,
   InputAdornment,
+  Chip,
+  Stack,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import type { AttributeApplication } from '../../types';
 
 interface LiteratureItem {
   id: string;
@@ -29,6 +32,7 @@ interface LiteratureItem {
   type: string;
   year: number;
   authors?: string[]; // 著者も追加
+  attributes?: AttributeApplication[]; // 属性情報を追加
 }
 
 // 文献タイプの日本語表示
@@ -57,11 +61,13 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
   const [searchTitle, setSearchTitle] = useState('');
   const [searchAuthor, setSearchAuthor] = useState('');
   const [searchYear, setSearchYear] = useState('');
+  const [searchAttribute, setSearchAttribute] = useState('');
   
   // 遅延評価された検索値（UIの応答性を維持しながら重い処理を遅延させる）
   const deferredSearchTitle = useDeferredValue(searchTitle);
   const deferredSearchAuthor = useDeferredValue(searchAuthor);
   const deferredSearchYear = useDeferredValue(searchYear);
+  const deferredSearchAttribute = useDeferredValue(searchAttribute);
 
   // 論文一覧の取得
   const loadLiteratures = async () => {
@@ -84,7 +90,7 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
   // ページ変更時に最初のページに戻す（検索条件変更時）
   useEffect(() => {
     setPage(0);
-  }, [deferredSearchTitle, deferredSearchAuthor, deferredSearchYear]);
+  }, [deferredSearchTitle, deferredSearchAuthor, deferredSearchYear, deferredSearchAttribute]);
 
   // ページ変更ハンドラ
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -107,6 +113,7 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
     setSearchTitle('');
     setSearchAuthor('');
     setSearchYear('');
+    setSearchAttribute('');
   };
 
   // 検索条件に基づいてフィルタリングされた論文一覧
@@ -126,9 +133,17 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
       const matchesYear = !deferredSearchYear || 
         item.year.toString().includes(deferredSearchYear);
       
-      return matchesTitle && matchesAuthor && matchesYear;
+      // 属性値でフィルタリング（属性情報がある場合のみ）
+      const matchesAttribute = !deferredSearchAttribute || 
+        (item.attributes && Array.isArray(item.attributes) && item.attributes.some(attr => 
+          Array.isArray(attr.values) && attr.values.some(value => 
+            value.toLowerCase().includes(deferredSearchAttribute.toLowerCase())
+          )
+        ));
+      
+      return matchesTitle && matchesAuthor && matchesYear && matchesAttribute;
     });
-  }, [literatures, deferredSearchTitle, deferredSearchAuthor, deferredSearchYear]);
+  }, [literatures, deferredSearchTitle, deferredSearchAuthor, deferredSearchYear, deferredSearchAttribute]);
 
   // 空の状態を表示
   const renderEmptyState = () => (
@@ -158,7 +173,7 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
   const renderSearchForm = () => (
     <Box sx={{ mb: 3 }}>
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <TextField
             fullWidth
             label="タイトルで検索"
@@ -186,7 +201,7 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
             }}
           />
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <TextField
             fullWidth
             label="著者で検索"
@@ -214,7 +229,7 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
             }}
           />
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <TextField
             fullWidth
             label="出版年で検索"
@@ -242,10 +257,39 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
             }}
           />
         </Grid>
+        <Grid item xs={12} sm={3}>
+          <TextField
+            fullWidth
+            label="属性値で検索"
+            variant="outlined"
+            size="small"
+            value={searchAttribute}
+            onChange={(e) => setSearchAttribute(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: searchAttribute && (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => setSearchAttribute('')}
+                    edge="end"
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Grid>
       </Grid>
-      {(searchTitle || searchAuthor || searchYear) && (
+      {(searchTitle || searchAuthor || searchYear || searchAttribute) && (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, alignItems: 'center' }}>
-          {deferredSearchTitle !== searchTitle || deferredSearchAuthor !== searchAuthor || deferredSearchYear !== searchYear ? (
+          {deferredSearchTitle !== searchTitle || deferredSearchAuthor !== searchAuthor || 
+           deferredSearchYear !== searchYear || deferredSearchAttribute !== searchAttribute ? (
             <Typography variant="caption" color="text.secondary">
               検索結果を更新中...
             </Typography>
@@ -285,8 +329,10 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
           <TableHead>
             <TableRow>
               <TableCell>タイトル</TableCell>
+              <TableCell>著者</TableCell>
               <TableCell>タイプ</TableCell>
               <TableCell>出版年</TableCell>
+              <TableCell>属性</TableCell>
               <TableCell align="right">操作</TableCell>
             </TableRow>
           </TableHead>
@@ -301,8 +347,30 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
                   sx={{ cursor: 'pointer' }}
                 >
                   <TableCell>{item.title}</TableCell>
+                  <TableCell>
+                    {item.authors?.join(', ') || '-'}
+                  </TableCell>
                   <TableCell>{getLiteratureTypeLabel(item.type)}</TableCell>
                   <TableCell>{item.year}</TableCell>
+                  <TableCell>
+                    {item.attributes && Array.isArray(item.attributes) && item.attributes.length > 0 ? (
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
+                        {item.attributes.flatMap(attr => 
+                          Array.isArray(attr.values) ? attr.values.map((value, idx) => (
+                            <Chip 
+                              key={`${attr.attributeId}-${idx}`}
+                              label={value} 
+                              size="small" 
+                              color="primary"
+                              variant="filled"
+                            />
+                          )) : []
+                        )}
+                      </Stack>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
                   <TableCell align="right">
                     <IconButton
                       size="small"
