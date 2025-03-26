@@ -51,27 +51,114 @@ const App: React.FC = () => {
   const [projectLoaded, setProjectLoaded] = useState<boolean | null>(null);
   // 選択中の論文ID（編集/詳細表示用）
   const [selectedLiteratureId, setSelectedLiteratureId] = useState<string | null>(null);
+  // 論文一覧の検索フィルター状態
+  const [searchFilters, setSearchFilters] = useState<{ 
+    title?: string; 
+    author?: string; 
+    year?: string; 
+    attribute?: string;
+  }>({});
+  // ページネーション状態
+  const [pagination, setPagination] = useState<{
+    page: number;
+    rowsPerPage: number;
+  }>({ page: 0, rowsPerPage: 100 });
   
-  // コンポーネントマウント時にプロジェクト設定を確認
+  // コンポーネントマウント時にプロジェクト設定とナビゲーション状態を確認
   useEffect(() => {
-    const checkProjectSettings = async () => {
+    const initializeApp = async () => {
       try {
+        // プロジェクト設定を読み込む
         const settings = await window.projectAPI.loadProjectSettings();
+        
         if (settings?.workingDir) {
           setProjectLoaded(true);
-          setCurrentPage('literatureList'); // 設定済みなら論文一覧を表示
+          
+          // ナビゲーション状態を読み込む
+          const navState = await window.projectAPI.loadNavigationState();
+          
+          if (navState) {
+            // 保存されたナビゲーション状態があれば復元
+            setCurrentPage(navState.currentPage || 'literatureList');
+            setSelectedLiteratureId(navState.selectedLiteratureId || null);
+            
+            if (navState.searchFilters) {
+              setSearchFilters(navState.searchFilters);
+            }
+            
+            if (navState.pagination) {
+              setPagination(navState.pagination);
+            }
+          } else {
+            // なければデフォルト状態で論文一覧を表示
+            setCurrentPage('literatureList');
+          }
         } else {
           setProjectLoaded(false);
           setCurrentPage('settings'); // 未設定ならプロジェクト設定画面を表示
         }
       } catch (error) {
-        console.error('プロジェクト設定の確認に失敗しました:', error);
+        console.error('アプリの初期化に失敗しました:', error);
         setProjectLoaded(false);
       }
     };
     
-    checkProjectSettings();
+    initializeApp();
   }, []);
+  
+  // ナビゲーション状態の変更時に保存（デバウンス処理を追加）
+  useEffect(() => {
+    // プロジェクト未設定時は保存しない
+    if (!projectLoaded) return;
+    
+    const saveNavigationState = async () => {
+      try {
+        await window.projectAPI.saveNavigationState({
+          currentPage,
+          selectedLiteratureId,
+          searchFilters,
+          pagination
+        });
+      } catch (error) {
+        console.error('ナビゲーション状態の保存に失敗しました:', error);
+      }
+    };
+    
+    // 300ms間隔でデバウンスして保存処理を実行（頻繁な保存を防止）
+    const debounceId = setTimeout(saveNavigationState, 300);
+    
+    // クリーンアップ関数
+    return () => {
+      clearTimeout(debounceId);
+    };
+  }, [currentPage, selectedLiteratureId, projectLoaded]);
+  
+  // 検索フィルターとページネーション変更時の保存を別のuseEffectで管理
+  useEffect(() => {
+    // プロジェクト未設定時は保存しない
+    if (!projectLoaded) return;
+    
+    const saveNavigationState = async () => {
+      try {
+        await window.projectAPI.saveNavigationState({
+          currentPage,
+          selectedLiteratureId,
+          searchFilters,
+          pagination
+        });
+      } catch (error) {
+        console.error('ナビゲーション状態の保存に失敗しました:', error);
+      }
+    };
+    
+    // 500ms間隔でデバウンスして保存処理を実行（頻繁な保存を防止）
+    const debounceId = setTimeout(saveNavigationState, 500);
+    
+    // クリーンアップ関数
+    return () => {
+      clearTimeout(debounceId);
+    };
+  }, [searchFilters, pagination, projectLoaded, currentPage, selectedLiteratureId]);
   
   // ページ遷移ハンドラ
   const handleNavigate = (page: string) => {
@@ -96,6 +183,24 @@ const App: React.FC = () => {
   const handleViewLiterature = (id: string) => {
     setSelectedLiteratureId(id);
     setCurrentPage('viewLiterature');
+  };
+  
+  // 検索フィルターの更新ハンドラ
+  const handleSearchFiltersChange = (filters: { 
+    title?: string; 
+    author?: string; 
+    year?: string; 
+    attribute?: string;
+  }) => {
+    setSearchFilters(filters);
+  };
+  
+  // ページネーションの更新ハンドラ
+  const handlePaginationChange = (paginationState: {
+    page: number;
+    rowsPerPage: number;
+  }) => {
+    setPagination(paginationState);
   };
   
   // 現在のページに応じたコンテンツを表示
@@ -124,6 +229,10 @@ const App: React.FC = () => {
             onAddNew={() => handleNavigate('addLiterature')} 
             onEdit={handleEditLiterature}
             onViewDetails={handleViewLiterature}
+            initialSearchFilters={searchFilters}
+            onSearchFiltersChange={handleSearchFiltersChange}
+            initialPagination={pagination}
+            onPaginationChange={handlePaginationChange}
           />
         );
       case 'addLiterature':

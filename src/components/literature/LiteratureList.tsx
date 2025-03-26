@@ -49,19 +49,47 @@ interface LiteratureListProps {
   onAddNew: () => void;
   onEdit: (id: string) => void;
   onViewDetails: (id: string) => void;
+  initialSearchFilters?: {
+    title?: string;
+    author?: string;
+    year?: string;
+    attribute?: string;
+  };
+  onSearchFiltersChange?: (filters: {
+    title?: string;
+    author?: string;
+    year?: string;
+    attribute?: string;
+  }) => void;
+  initialPagination?: {
+    page: number;
+    rowsPerPage: number;
+  };
+  onPaginationChange?: (pagination: {
+    page: number;
+    rowsPerPage: number;
+  }) => void;
 }
 
-const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onViewDetails }) => {
+const LiteratureList: React.FC<LiteratureListProps> = ({ 
+  onAddNew, 
+  onEdit, 
+  onViewDetails, 
+  initialSearchFilters,
+  onSearchFiltersChange,
+  initialPagination,
+  onPaginationChange
+}) => {
   const [literatures, setLiteratures] = useState<LiteratureItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [page, setPage] = useState(initialPagination?.page || 0);
+  const [rowsPerPage, setRowsPerPage] = useState(initialPagination?.rowsPerPage || 100);
   
   // 検索フィルター用の状態
-  const [searchTitle, setSearchTitle] = useState('');
-  const [searchAuthor, setSearchAuthor] = useState('');
-  const [searchYear, setSearchYear] = useState('');
-  const [searchAttribute, setSearchAttribute] = useState('');
+  const [searchTitle, setSearchTitle] = useState(initialSearchFilters?.title || '');
+  const [searchAuthor, setSearchAuthor] = useState(initialSearchFilters?.author || '');
+  const [searchYear, setSearchYear] = useState(initialSearchFilters?.year || '');
+  const [searchAttribute, setSearchAttribute] = useState(initialSearchFilters?.attribute || '');
   
   // 遅延評価された検索値（UIの応答性を維持しながら重い処理を遅延させる）
   const deferredSearchTitle = useDeferredValue(searchTitle);
@@ -87,10 +115,46 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
     loadLiteratures();
   }, []);
 
-  // ページ変更時に最初のページに戻す（検索条件変更時）
+  // 検索条件変更時に最初のページに戻す
   useEffect(() => {
     setPage(0);
   }, [deferredSearchTitle, deferredSearchAuthor, deferredSearchYear, deferredSearchAttribute]);
+  
+  // 検索条件が実際に変化した場合にのみ親コンポーネントに通知
+  useEffect(() => {
+    // 通知用の検索条件オブジェクトを作成
+    const currentFilters = {
+      title: searchTitle,
+      author: searchAuthor,
+      year: searchYear,
+      attribute: searchAttribute
+    };
+    
+    // 前回の通知内容と同じ場合は通知しない
+    const filtersChanged = JSON.stringify(currentFilters) !== JSON.stringify(initialSearchFilters || {});
+    
+    if (onSearchFiltersChange && filtersChanged) {
+      onSearchFiltersChange(currentFilters);
+    }
+  }, [searchTitle, searchAuthor, searchYear, searchAttribute, initialSearchFilters, onSearchFiltersChange]);
+
+  // ページネーション変更時に親コンポーネントに通知（前回と異なる場合のみ）
+  useEffect(() => {
+    const currentPagination = {
+      page,
+      rowsPerPage
+    };
+    
+    // 前回の通知内容と同じ場合は通知しない
+    const paginationChanged = 
+      !initialPagination || 
+      initialPagination.page !== page || 
+      initialPagination.rowsPerPage !== rowsPerPage;
+    
+    if (onPaginationChange && paginationChanged) {
+      onPaginationChange(currentPagination);
+    }
+  }, [page, rowsPerPage, initialPagination, onPaginationChange]);
 
   // ページ変更ハンドラ
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -114,6 +178,11 @@ const LiteratureList: React.FC<LiteratureListProps> = ({ onAddNew, onEdit, onVie
     setSearchAuthor('');
     setSearchYear('');
     setSearchAttribute('');
+    
+    // 親コンポーネントに変更を通知
+    if (onSearchFiltersChange) {
+      onSearchFiltersChange({});
+    }
   };
 
   // 検索条件に基づいてフィルタリングされた論文一覧

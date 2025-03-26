@@ -12,6 +12,7 @@ if (started) {
 // ユーザーデータフォルダへのパスを取得
 const userDataPath = app.getPath('userData');
 const settingsFilePath = path.join(userDataPath, 'project-settings.json');
+const navigationStatePath = path.join(userDataPath, 'navigation-state.json');
 
 const createWindow = () => {
   // Create the browser window.
@@ -823,5 +824,31 @@ ipcMain.handle('save-export-file', async (_, data, format = 'csv') => {
   } catch (error) {
     console.error('エクスポートファイルの保存に失敗しました:', error);
     return { success: false, error: error.message };
+  }
+});
+
+// ナビゲーション状態を保存するハンドラー
+ipcMain.handle('save-navigation-state', async (_, state) => {
+  try {
+    await fs.writeFile(navigationStatePath, JSON.stringify(state, null, 2), 'utf-8');
+    return { success: true };
+  } catch (error) {
+    console.error('ナビゲーション状態の保存に失敗しました:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ナビゲーション状態を読み込むハンドラー
+ipcMain.handle('load-navigation-state', async () => {
+  try {
+    const data = await fs.readFile(navigationStatePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    // ファイルが存在しない場合はnullを返す
+    if (error.code === 'ENOENT') {
+      return null;
+    }
+    console.error('ナビゲーション状態の読み込みに失敗しました:', error);
+    return null;
   }
 });

@@ -2,7 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AttributeSchema, Literature, ProjectSettings } from './types';
+import type { AttributeSchema, Literature, NavigationState, ProjectSettings } from './types';
 
 // プロジェクト設定と論文メタデータのためのAPIを公開
 contextBridge.exposeInMainWorld('projectAPI', {
@@ -60,4 +60,10 @@ contextBridge.exposeInMainWorld('projectAPI', {
   
   // エクスポートファイルを保存する
   saveExportFile: (data: string, format: 'csv' | 'tsv') => ipcRenderer.invoke('save-export-file', data, format),
+  
+  // ナビゲーション状態を保存する
+  saveNavigationState: (state: NavigationState) => ipcRenderer.invoke('save-navigation-state', state),
+  
+  // ナビゲーション状態を読み込む
+  loadNavigationState: () => ipcRenderer.invoke('load-navigation-state'),
 });

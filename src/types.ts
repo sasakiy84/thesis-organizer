@@ -172,6 +172,25 @@ export interface ExportConfig {
   attributeIds?: string[]; // 指定した場合、その属性のみエクスポート
 }
 
+// ナビゲーション状態
+export interface NavigationState {
+  currentPage: string;
+  selectedLiteratureId?: string | null;
+  searchFilters?: LiteratureSearchFilters;
+  pagination?: {
+    page: number;
+    rowsPerPage: number;
+  }
+}
+
+// 検索フィルター状態
+export interface LiteratureSearchFilters {
+  title?: string;
+  author?: string;
+  year?: string;
+  attribute?: string;
+}
+
 // Window APIの型定義
 export interface ProjectAPI {
   selectWorkingDir: () => Promise<string | null>;
@@ -207,4 +226,8 @@ export interface ProjectAPI {
   exportAttributes: (format?: 'csv' | 'tsv') => Promise<{ success: boolean; data?: string; error?: string }>;
   // エクスポートファイルの保存
   saveExportFile: (data: string, format: 'csv' | 'tsv') => Promise<{ success: boolean; filePath?: string; error?: string }>;
+  // ナビゲーション状態の保存
+  saveNavigationState: (state: NavigationState) => Promise<{ success: boolean; error?: string }>;
+  // ナビゲーション状態の読み込み
+  loadNavigationState: () => Promise<NavigationState | null>;
 }
