@@ -191,6 +191,13 @@ export interface LiteratureSearchFilters {
   attribute?: string;
 }
 
+// プロジェクト履歴の型
+export interface ProjectHistoryItem {
+  projectName: string;
+  workingDir: string;
+  lastOpenedAt: string;
+}
+
 // Window APIの型定義
 export interface ProjectAPI {
   selectWorkingDir: () => Promise<string | null>;
@@ -230,4 +237,6 @@ export interface ProjectAPI {
   saveNavigationState: (state: NavigationState) => Promise<{ success: boolean; error?: string }>;
   // ナビゲーション状態の読み込み
   loadNavigationState: () => Promise<NavigationState | null>;
+  // プロジェクト履歴の取得
+  getProjectHistory: () => Promise<ProjectHistoryItem[]>;
 }

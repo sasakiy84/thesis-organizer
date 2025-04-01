@@ -66,4 +66,7 @@ contextBridge.exposeInMainWorld('projectAPI', {
   
   // ナビゲーション状態を読み込む
   loadNavigationState: () => ipcRenderer.invoke('load-navigation-state'),
+  
+  // プロジェクト履歴を取得する
+  getProjectHistory: () => ipcRenderer.invoke('get-project-history'),
 });

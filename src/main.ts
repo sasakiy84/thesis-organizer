@@ -13,6 +13,7 @@ if (started) {
 const userDataPath = app.getPath('userData');
 const settingsFilePath = path.join(userDataPath, 'project-settings.json');
 const navigationStatePath = path.join(userDataPath, 'navigation-state.json');
+const projectHistoryPath = path.join(userDataPath, 'project-history.json');
 
 const createWindow = () => {
   // Create the browser window.
@@ -116,6 +117,9 @@ ipcMain.handle('save-project-settings', async (_, settings) => {
       }
     }
     
+    // プロジェクト履歴に追加
+    await addToProjectHistory(settings.projectName, settings.workingDir);
+    
     return { success: true };
   } catch (error) {
     console.error('プロジェクト設定の保存に失敗しました:', error);
@@ -182,6 +186,9 @@ ipcMain.handle('switch-project', async (_, workingDir) => {
         throw error;
       }
     }
+    
+    // プロジェクト履歴に追加
+    await addToProjectHistory(metadata.projectName, workingDir);
     
     return { success: true };
   } catch (error) {
@@ -850,5 +857,75 @@ ipcMain.handle('load-navigation-state', async () => {
     }
     console.error('ナビゲーション状態の読み込みに失敗しました:', error);
     return null;
+  }
+});
+
+// プロジェクト履歴を追加するヘルパー関数
+async function addToProjectHistory(projectName: string, workingDir: string) {
+  try {
+    // 現在の履歴を読み込む
+    let history: { projectName: string, workingDir: string, lastOpenedAt: string }[] = [];
+    try {
+      const data = await fs.readFile(projectHistoryPath, 'utf-8');
+      history = JSON.parse(data);
+    } catch (error) {
+      // ファイルが存在しない場合は空の配列を使う
+      if (error.code !== 'ENOENT') {
+        console.error('プロジェクト履歴の読み込みに失敗しました:', error);
+      }
+    }
+
+    // 現在のディレクトリが既に履歴にあるか確認
+    const existingIndex = history.findIndex(item => item.workingDir === workingDir);
+    const now = new Date().toISOString();
+
+    if (existingIndex >= 0) {
+      // 既存の項目を更新
+      history[existingIndex].lastOpenedAt = now;
+      history[existingIndex].projectName = projectName;
+    } else {
+      // 新規項目を追加
+      history.unshift({
+        projectName,
+        workingDir,
+        lastOpenedAt: now
+      });
+    }
+
+    // 最新の日時順に並べ替え
+    history.sort((a, b) => new Date(b.lastOpenedAt).getTime() - new Date(a.lastOpenedAt).getTime());
+
+    // 最大20件に制限
+    if (history.length > 20) {
+      history = history.slice(0, 20);
+    }
+
+    // 履歴を保存
+    await fs.writeFile(projectHistoryPath, JSON.stringify(history, null, 2), 'utf-8');
+    
+    return true;
+  } catch (error) {
+    console.error('プロジェクト履歴の更新に失敗しました:', error);
+    return false;
+  }
+}
+
+// プロジェクト履歴を取得するハンドラー
+ipcMain.handle('get-project-history', async () => {
+  try {
+    // プロジェクト履歴を読み込む
+    try {
+      const data = await fs.readFile(projectHistoryPath, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      // ファイルが存在しない場合は空の配列を返す
+      if (error.code === 'ENOENT') {
+        return [];
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('プロジェクト履歴の取得に失敗しました:', error);
+    return [];
   }
 });

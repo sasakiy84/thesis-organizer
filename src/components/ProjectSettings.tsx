@@ -10,11 +10,20 @@ import {
   Snackbar,
   Alert,
   Divider,
-  Stack
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemButton
 } from '@mui/material';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import { type ProjectSettings, ProjectSettingsSchema } from '../types';
+import HistoryIcon from '@mui/icons-material/History';
+import { type ProjectSettings, ProjectSettingsSchema, type ProjectHistoryItem } from '../types';
 
 const ProjectSettingsForm: React.FC = () => {
   const [settings, setSettings] = useState<ProjectSettings>({
@@ -31,6 +40,10 @@ const ProjectSettingsForm: React.FC = () => {
     message: string;
     severity: 'success' | 'error';
   }>({ open: false, message: '', severity: 'success' });
+  
+  // プロジェクト履歴関連の状態
+  const [projectHistory, setProjectHistory] = useState<ProjectHistoryItem[]>([]);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   // 保存済み設定の読み込み
   useEffect(() => {
@@ -49,6 +62,20 @@ const ProjectSettingsForm: React.FC = () => {
     };
 
     loadSettings();
+  }, []);
+  
+  // プロジェクト履歴の読み込み
+  useEffect(() => {
+    const loadProjectHistory = async () => {
+      try {
+        const history = await window.projectAPI.getProjectHistory();
+        setProjectHistory(history);
+      } catch (error) {
+        console.error('プロジェクト履歴の読み込みに失敗しました:', error);
+      }
+    };
+    
+    loadProjectHistory();
   }, []);
 
   // フォーム入力の更新
@@ -207,6 +234,53 @@ const ProjectSettingsForm: React.FC = () => {
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
+  
+  // 履歴ダイアログを開く
+  const handleOpenHistoryDialog = () => {
+    setHistoryDialogOpen(true);
+  };
+  
+  // 履歴ダイアログを閉じる
+  const handleCloseHistoryDialog = () => {
+    setHistoryDialogOpen(false);
+  };
+  
+  // 履歴からプロジェクトを開く
+  const handleOpenProjectFromHistory = async (workingDir: string) => {
+    setIsLoading(true);
+    try {
+      // 履歴ダイアログを閉じる
+      setHistoryDialogOpen(false);
+      
+      // プロジェクトを切り替え
+      const result = await window.projectAPI.switchProject(workingDir);
+      
+      if (result.success) {
+        setSnackbar({
+          open: true,
+          message: 'プロジェクトを開きました',
+          severity: 'success'
+        });
+        
+        // windowをリロードして設定を反映
+        window.location.reload();
+      } else {
+        setSnackbar({
+          open: true,
+          message: `プロジェクトを開けませんでした: ${result.error}`,
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: `エラーが発生しました: ${error.message}`,
+        severity: 'error'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Paper elevation={3} sx={{ p: 3, width: '100%', mt: 4 }}>
@@ -234,6 +308,15 @@ const ProjectSettingsForm: React.FC = () => {
             fullWidth
           >
             新規プロジェクト作成
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<HistoryIcon />}
+            onClick={handleOpenHistoryDialog}
+            disabled={isLoading || projectHistory.length === 0}
+            fullWidth
+          >
+            最近開いたプロジェクト
           </Button>
         </Stack>
         <Typography variant="body2" color="text.secondary">
@@ -341,6 +424,39 @@ const ProjectSettingsForm: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      
+      {/* 最近開いたプロジェクト一覧ダイアログ */}
+      <Dialog 
+        open={historyDialogOpen} 
+        onClose={handleCloseHistoryDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>最近開いたプロジェクト</DialogTitle>
+        <DialogContent>
+          <List sx={{ width: '100%' }}>
+            {projectHistory.map((item, index) => {
+              // 日時を整形
+              const date = new Date(item.lastOpenedAt);
+              const formattedDate = `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+              
+              return (
+                <ListItem key={index} divider>
+                  <ListItemButton onClick={() => handleOpenProjectFromHistory(item.workingDir)}>
+                    <ListItemText 
+                      primary={item.projectName}
+                      secondary={`${item.workingDir} - 最終アクセス: ${formattedDate}`}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseHistoryDialog}>閉じる</Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
